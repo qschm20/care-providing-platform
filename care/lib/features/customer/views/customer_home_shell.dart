@@ -4,6 +4,7 @@ import '../providers/category_provider.dart';
 import '../models/care_category.dart';
 import 'care_category_details_screen.dart';
 import '../../auth/providers/auth_provider.dart';
+import 'my_care_requests_screen.dart';
 
 class CustomerHomeShell extends StatefulWidget {
   const CustomerHomeShell({super.key});
@@ -18,7 +19,7 @@ class _CustomerHomeShellState extends State<CustomerHomeShell> {
   final List<Widget> _pages = const [
     CustomerHomeScreen(),
     Center(child: Text('Search Screen')),
-    Center(child: Text('Requests Screen')),
+    MyCareRequestsScreen(),
     Center(child: Text('Settings Screen')),
   ];
 
@@ -73,6 +74,7 @@ class CustomerHomeScreen extends ConsumerWidget {
     final authState = ref.watch(authProvider);
     final userName = authState.user?['name'] ?? 'Sarah';
     final categories = ref.watch(categoryProvider);
+    final isDemoMode = authState.token == 'DEMO_TOKEN';
 
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFC),
@@ -112,6 +114,22 @@ class CustomerHomeScreen extends ConsumerWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              if (isDemoMode)
+                Container(
+                  width: double.infinity,
+                  margin: const EdgeInsets.only(bottom: 12),
+                  padding: const EdgeInsets.symmetric(vertical: 8),
+                  decoration: BoxDecoration(
+                    color: Colors.amber.shade100,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const Text(
+                    '⚠ DEMO MODE — no real backend connected',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
+                  ),
+                ),
+
               // Greeting Section
               Text(
                 'Hello, $userName!',

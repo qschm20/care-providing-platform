@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../models/care_category.dart';
+import 'senior_care_form_screen.dart';
 
 class CareCategoryDetailsScreen extends StatelessWidget {
   final CareCategory category;
@@ -9,6 +10,7 @@ class CareCategoryDetailsScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     const primaryColor = Color(0xFF006859);
+    final bool isSeniorCare = category.name == 'Senior Care';
 
     return Scaffold(
       appBar: AppBar(title: Text(category.name)),
@@ -58,7 +60,16 @@ class CareCategoryDetailsScreen extends StatelessWidget {
             SizedBox(
               width: double.infinity,
               child: ElevatedButton(
-                onPressed: null,
+                onPressed: isSeniorCare
+                    ? () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => const SeniorCareFormScreen(),
+                          ),
+                        );
+                      }
+                    : null,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: primaryColor,
                   padding: const EdgeInsets.symmetric(vertical: 14),
@@ -66,9 +77,9 @@ class CareCategoryDetailsScreen extends StatelessWidget {
                     borderRadius: BorderRadius.circular(12),
                   ),
                 ),
-                child: const Text(
-                  'Post a Care Request (coming soon)',
-                  style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                child: Text(
+                  isSeniorCare ? 'Post a Care Request' : 'Coming soon',
+                  style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
                 ),
               ),
             ),
