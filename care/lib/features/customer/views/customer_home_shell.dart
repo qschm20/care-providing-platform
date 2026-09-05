@@ -2,7 +2,16 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/category_provider.dart';
 import '../models/care_category.dart';
-import 'care_category_details_screen.dart';
+// Remove this import:
+// import 'care_category_details_screen.dart';
+
+// Add these imports:
+import 'senior_care_form_screen.dart';
+import 'child_care_form_screen.dart';
+// TODO: Will add these in next step
+// import 'pet_care_form_screen.dart';
+// import 'special_needs_form_screen.dart';
+
 import '../../auth/providers/auth_provider.dart';
 import 'my_care_requests_screen.dart';
 
@@ -260,12 +269,28 @@ class _CategoryCard extends StatelessWidget {
     return InkWell(
       borderRadius: BorderRadius.circular(16),
       onTap: () {
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => CareCategoryDetailsScreen(category: category),
-          ),
-        );
+        // Navigate directly to the appropriate form based on category
+        if (category.name == 'Senior Care') {
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (context) => const SeniorCareFormScreen()),
+          );
+        } else if (category.name == 'Child Care') {
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (context) => const ChildCareFormScreen()),
+          );
+        } else if (category.name == 'Pet Care') {
+          // TODO: Will implement Pet Care form
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Pet Care form coming soon')),
+          );
+        } else if (category.name == 'Special Needs Care') {
+          // TODO: Will implement Special Needs Care form
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Special Needs Care form coming soon')),
+          );
+        }
       },
       child: Container(
         decoration: BoxDecoration(
