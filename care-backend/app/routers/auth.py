@@ -32,11 +32,23 @@ def register(payload: UserRegister, db: Session = Depends(get_db)):
 
 @router.post("/login")
 def login(payload: UserLogin, db: Session = Depends(get_db)):
+    print(f"\n--- LOGIN ATTEMPT START ---")
+    print(f"Received Email: '{payload.email}'")
+    
     user = db.query(User).filter(User.email == payload.email).first()
 
+    if not user:
+        print("DEBUG: No user found with this email in the database.")
+    else:
+        print(f"DEBUG: User found! ID: {user.id}")
+        is_valid = verify_password(payload.password, user.password_hash)
+        print(f"DEBUG: Password matches? {is_valid}")
+
     if not user or not verify_password(payload.password, user.password_hash):
+        print("--- LOGIN FAILED ---\n")
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid email or password")
 
+    print("--- LOGIN SUCCESS ---\n")
     access_token = create_access_token(data={"sub": str(user.id), "role": user.role.value})
 
     return {

@@ -2,15 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/category_provider.dart';
 import '../models/care_category.dart';
-// Remove this import:
-// import 'care_category_details_screen.dart';
 
-// Add these imports:
+// Form Screen Imports
 import 'senior_care_form_screen.dart';
 import 'child_care_form_screen.dart';
-// TODO: Will add these in next step
-// import 'pet_care_form_screen.dart';
-// import 'special_needs_form_screen.dart';
+import 'pet_care_form_screen.dart';
+import 'special_needs_form_screen.dart';
 
 import '../../auth/providers/auth_provider.dart';
 import 'my_care_requests_screen.dart';
@@ -269,26 +266,32 @@ class _CategoryCard extends StatelessWidget {
     return InkWell(
       borderRadius: BorderRadius.circular(16),
       onTap: () {
-        // Navigate directly to the appropriate form based on category
-        if (category.name == 'Senior Care') {
+        // Convert to lowercase to prevent case-sensitivity issues
+        final nameLower = category.name.toLowerCase();
+
+        if (nameLower.contains('senior')) {
           Navigator.push(
             context,
             MaterialPageRoute(builder: (context) => const SeniorCareFormScreen()),
           );
-        } else if (category.name == 'Child Care') {
+        } else if (nameLower.contains('child')) {
           Navigator.push(
             context,
             MaterialPageRoute(builder: (context) => const ChildCareFormScreen()),
           );
-        } else if (category.name == 'Pet Care') {
-          // TODO: Will implement Pet Care form
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Pet Care form coming soon')),
+        } else if (nameLower.contains('pet')) {
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (context) => const PetCareFormScreen()),
           );
-        } else if (category.name == 'Special Needs Care') {
-          // TODO: Will implement Special Needs Care form
+        } else if (nameLower.contains('special')) {
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (context) => const SpecialNeedsFormScreen()),
+          );
+        } else {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Special Needs Care form coming soon')),
+            SnackBar(content: Text('${category.name} form coming soon')),
           );
         }
       },

@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../customer/views/customer_home_shell.dart';
 import '../repositories/auth_repository.dart';
 import '../providers/auth_provider.dart';
+import '../../provider/views/provider_home_shell.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
@@ -46,11 +47,26 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             token: result.token!,
             user: result.user!,
           );
-      Navigator.pushAndRemoveUntil(
-        context,
-        MaterialPageRoute(builder: (context) => const CustomerHomeShell()),
-        (route) => false,
-      );
+
+      // --- NEW ROUTING LOGIC BASED ON ROLE ---
+      final userRole = result.user!['role'];
+
+         if (userRole == 'provider') {
+     Navigator.pushAndRemoveUntil(
+       context,
+       MaterialPageRoute(builder: (context) => const ProviderHomeShell()),
+       (route) => false,
+     );
+   } else {
+        // Customer goes to the customer home
+        Navigator.pushAndRemoveUntil(
+          context,
+          MaterialPageRoute(builder: (context) => const CustomerHomeShell()),
+          (route) => false,
+        );
+      }
+      // -----------------------------------------
+
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(result.errorMessage ?? 'Login failed')),

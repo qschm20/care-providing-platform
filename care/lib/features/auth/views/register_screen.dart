@@ -64,11 +64,27 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
             token: result.token!,
             user: result.user!,
           );
-      Navigator.pushAndRemoveUntil(
-        context,
-        MaterialPageRoute(builder: (context) => const CustomerHomeShell()),
-        (route) => false,
-      );
+
+      // --- NEW ROUTING LOGIC BASED ON ROLE ---
+      if (_selectedRole == UserRole.provider) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Provider registration successful! Provider dashboard is being built in the next increment.'),
+            backgroundColor: Colors.teal,
+          ),
+        );
+        // Return to login screen so they can log in fresh later
+        Navigator.pop(context); 
+      } else {
+        // Customer goes to the customer home
+        Navigator.pushAndRemoveUntil(
+          context,
+          MaterialPageRoute(builder: (context) => const CustomerHomeShell()),
+          (route) => false,
+        );
+      }
+      // -----------------------------------------
+
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(result.errorMessage ?? 'Registration failed')),

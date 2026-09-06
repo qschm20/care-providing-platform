@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 from app.core.database import get_db
 from app.core.security import get_current_user
 from app.models.care_request import CareRequest
-from app.models.user import User
+from app.models.user import User, UserRole
 from app.schemas.care_request import CareRequestCreate, CareRequestResponse
 
 router = APIRouter(prefix="/care-requests", tags=["care-requests"])
@@ -18,6 +18,12 @@ def create_care_request(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
+    if current_user.role != UserRole.customer:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only customers can create care requests."
+        )
+    
     if payload.end_time <= payload.start_time:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
