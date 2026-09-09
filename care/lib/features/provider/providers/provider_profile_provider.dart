@@ -37,11 +37,21 @@ class ProviderProfileNotifier extends StateNotifier<ProviderProfileState> {
       return;
     }
 
-    final result = await _repository.getProfile(token);
-    if (result['success']) {
-      state = state.copyWith(profile: result['data'], isLoading: false);
-    } else {
-      state = state.copyWith(error: result['errorMessage'], isLoading: false);
+    // ✅ SAFETY NET: Prevents infinite loading if the repository crashes
+    try {
+      final result = await _repository.getProfile(token);
+      
+      if (result['success'] == true) {
+        state = state.copyWith(profile: result['data'], isLoading: false);
+      } else {
+        state = state.copyWith(
+          error: result['errorMessage'] ?? 'Unknown error', 
+          isLoading: false
+        );
+      }
+    } catch (e) {
+      // If the repository throws an error, we catch it here and stop the loading spinner!
+      state = state.copyWith(error: 'Failed to load profile: $e', isLoading: false);
     }
   }
 
@@ -49,12 +59,19 @@ class ProviderProfileNotifier extends StateNotifier<ProviderProfileState> {
     state = state.copyWith(isLoading: true, error: null);
     final token = _ref.read(authProvider).token;
     
-    final result = await _repository.updateProfile(token!, bio, serviceArea);
-    if (result['success']) {
-      state = state.copyWith(profile: result['data'], isLoading: false);
-      return true;
-    } else {
-      state = state.copyWith(error: result['errorMessage'], isLoading: false);
+    if (token == null) return false;
+
+    try {
+      final result = await _repository.updateProfile(token, bio, serviceArea);
+      if (result['success'] == true) {
+        state = state.copyWith(profile: result['data'], isLoading: false);
+        return true;
+      } else {
+        state = state.copyWith(error: result['errorMessage'], isLoading: false);
+        return false;
+      }
+    } catch (e) {
+      state = state.copyWith(error: 'Failed to update: $e', isLoading: false);
       return false;
     }
   }
@@ -63,12 +80,19 @@ class ProviderProfileNotifier extends StateNotifier<ProviderProfileState> {
     state = state.copyWith(isLoading: true, error: null);
     final token = _ref.read(authProvider).token;
     
-    final result = await _repository.submitVerification(token!);
-    if (result['success']) {
-      state = state.copyWith(profile: result['data'], isLoading: false);
-      return true;
-    } else {
-      state = state.copyWith(error: result['errorMessage'], isLoading: false);
+    if (token == null) return false;
+
+    try {
+      final result = await _repository.submitVerification(token);
+      if (result['success'] == true) {
+        state = state.copyWith(profile: result['data'], isLoading: false);
+        return true;
+      } else {
+        state = state.copyWith(error: result['errorMessage'], isLoading: false);
+        return false;
+      }
+    } catch (e) {
+      state = state.copyWith(error: 'Failed to submit: $e', isLoading: false);
       return false;
     }
   }

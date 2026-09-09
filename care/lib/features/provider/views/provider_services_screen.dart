@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/provider_services_provider.dart';
-import 'add_edit_service_screen.dart';
+import 'add_service_form.dart';
 
 class ProviderServicesScreen extends ConsumerStatefulWidget {
   const ProviderServicesScreen({super.key});
@@ -11,6 +11,8 @@ class ProviderServicesScreen extends ConsumerStatefulWidget {
 }
 
 class _ProviderServicesScreenState extends ConsumerState<ProviderServicesScreen> {
+  bool _isAddingService = false;
+
   @override
   void initState() {
     super.initState();
@@ -24,7 +26,7 @@ class _ProviderServicesScreenState extends ConsumerState<ProviderServicesScreen>
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Delete Service?'),
-        content: Text('Are you sure you want to delete this $categoryName service? This action cannot be undone.'),
+        content: Text('Are you sure you want to delete this $categoryName service? This cannot be undone.'),
         actions: [
           TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
           ElevatedButton(
@@ -38,15 +40,9 @@ class _ProviderServicesScreenState extends ConsumerState<ProviderServicesScreen>
 
     if (confirm == true && mounted) {
       final success = await ref.read(providerServicesProvider.notifier).deleteService(serviceId);
-      if (!mounted) return;
-      if (success) {
+      if (mounted && success) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Service deleted'), backgroundColor: Colors.teal),
-        );
-      } else {
-        final error = ref.read(providerServicesProvider).error ?? 'Failed to delete';
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(error), backgroundColor: Colors.red),
         );
       }
     }
@@ -66,119 +62,174 @@ class _ProviderServicesScreenState extends ConsumerState<ProviderServicesScreen>
         title: const Text('My Services', style: TextStyle(color: primaryColor, fontWeight: FontWeight.bold)),
         centerTitle: true,
       ),
-      body: servicesState.isLoading && services.isEmpty
-          ? const Center(child: CircularProgressIndicator())
-          : services.isEmpty
-              ? Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(Icons.business, size: 64, color: Colors.grey.shade400),
-                      const SizedBox(height: 16),
-                      Text('No services added yet', style: TextStyle(fontSize: 16, color: Colors.grey.shade600)),
-                      const SizedBox(height: 8),
-                      Text('Tap the + button to add your first service', style: TextStyle(fontSize: 14, color: Colors.grey.shade500)),
-                    ],
-                  ),
-                )
-              : RefreshIndicator(
-                  onRefresh: () => ref.read(providerServicesProvider.notifier).fetchServices(),
-                  child: ListView.builder(
-                    padding: const EdgeInsets.all(16),
-                    itemCount: services.length,
-                    itemBuilder: (context, index) {
-                      final service = services[index];
-                      final category = (service['category'] as String).replaceAll('_', ' ').toUpperCase();
-                      final price = service['price'];
-                      final unit = (service['pricing_unit'] as String).replaceAll('_', ' ');
-
-                      return Card(
-                        margin: const EdgeInsets.only(bottom: 12),
-                        elevation: 2,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                        child: Padding(
-                          padding: const EdgeInsets.all(16),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                children: [
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                                    decoration: BoxDecoration(
-                                      color: primaryColor.withOpacity(0.1),
-                                      borderRadius: BorderRadius.circular(6),
-                                    ),
-                                    child: Text(
-                                      category,
-                                      style: const TextStyle(color: primaryColor, fontWeight: FontWeight.bold, fontSize: 12),
-                                    ),
-                                  ),
-                                  Row(
-                                    children: [
-                                      IconButton(
-                                        icon: const Icon(Icons.edit, size: 20, color: Colors.blue),
-                                        onPressed: () async {
-                                          final result = await Navigator.push(
-                                            context,
-                                            MaterialPageRoute(
-                                              builder: (context) => AddEditServiceScreen(existingService: service),
-                                            ),
-                                          );
-                                          if (result == true) {
-                                            ScaffoldMessenger.of(context).showSnackBar(
-                                              const SnackBar(content: Text('Service updated'), backgroundColor: Colors.teal),
-                                            );
-                                          }
-                                        },
-                                      ),
-                                      IconButton(
-                                        icon: const Icon(Icons.delete, size: 20, color: Colors.red),
-                                        onPressed: () => _confirmDelete(service['id'], category),
-                                      ),
-                                    ],
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(height: 12),
-                              Text(
-                                service['description'],
-                                style: const TextStyle(fontSize: 14, color: Colors.black87, height: 1.4),
-                              ),
-                              const SizedBox(height: 12),
-                              Row(
-                                children: [
-                                  const Icon(Icons.attach_money, size: 16, color: Colors.grey),
-                                  const SizedBox(width: 4),
-                                  Text(
-                                    'Rs. $price / $unit',
-                                    style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: primaryColor),
-                                  ),
-                                ],
-                              ),
-                            ],
-                          ),
+      body: Column(
+        children: [
+          // --- TOGGLE BUTTON ---
+          Container(
+            margin: const EdgeInsets.all(16),
+            padding: const EdgeInsets.all(4),
+            decoration: BoxDecoration(
+              color: Colors.grey.shade200,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Row(
+              children: [
+                Expanded(
+                  child: GestureDetector(
+                    onTap: () => setState(() => _isAddingService = false),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      decoration: BoxDecoration(
+                        color: !_isAddingService ? Colors.white : Colors.transparent,
+                        borderRadius: BorderRadius.circular(8),
+                        boxShadow: !_isAddingService ? [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 4)] : null,
+                      ),
+                      child: Center(
+                        child: Text(
+                          'My Services (${services.length})',
+                          style: TextStyle(fontWeight: FontWeight.w600, color: !_isAddingService ? primaryColor : Colors.grey.shade600),
                         ),
-                      );
-                    },
+                      ),
+                    ),
                   ),
                 ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () async {
-          final result = await Navigator.push(
-            context,
-            MaterialPageRoute(builder: (context) => const AddEditServiceScreen()),
-          );
-          if (result == true) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Service added successfully'), backgroundColor: Colors.teal),
-            );
-          }
-        },
-        backgroundColor: primaryColor,
-        icon: const Icon(Icons.add, color: Colors.white),
-        label: const Text('Add Service', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                Expanded(
+                  child: GestureDetector(
+                    onTap: () => setState(() => _isAddingService = true),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      decoration: BoxDecoration(
+                        color: _isAddingService ? Colors.white : Colors.transparent,
+                        borderRadius: BorderRadius.circular(8),
+                        boxShadow: _isAddingService ? [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 4)] : null,
+                      ),
+                      child: const Center(
+                        child: Text('+ Create Service', style: TextStyle(fontWeight: FontWeight.w600, color: Color(0xFF006859))),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          // --- CONTENT AREA ---
+          Expanded(
+            child: _isAddingService
+                ? AddServiceForm(
+                    onSuccess: () {
+                      setState(() => _isAddingService = false);
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Service published successfully!'), backgroundColor: Colors.teal),
+                      );
+                    },
+                  )
+                : servicesState.isLoading && services.isEmpty
+                    ? const Center(child: CircularProgressIndicator())
+                    : services.isEmpty
+                        ? Center(
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(Icons.business, size: 64, color: Colors.grey.shade400),
+                                const SizedBox(height: 16),
+                                Text('No services added yet', style: TextStyle(fontSize: 16, color: Colors.grey.shade600)),
+                                const SizedBox(height: 8),
+                                ElevatedButton(
+                                  onPressed: () => setState(() => _isAddingService = true),
+                                  style: ElevatedButton.styleFrom(backgroundColor: primaryColor),
+                                  child: const Text('Add Your First Service', style: TextStyle(color: Colors.white)),
+                                ),
+                              ],
+                            ),
+                          )
+                        : RefreshIndicator(
+                            onRefresh: () => ref.read(providerServicesProvider.notifier).fetchServices(),
+                            child: ListView.builder(
+                              padding: const EdgeInsets.symmetric(horizontal: 16),
+                              itemCount: services.length,
+                              itemBuilder: (context, index) {
+                                final service = services[index];
+                                final category = (service['category'] as String).replaceAll('_', ' ').toUpperCase();
+                                final price = service['price'];
+                                final unit = (service['pricing_unit'] as String).replaceAll('_', ' ');
+                                final title = service['title'] ?? category;
+
+                                return Card(
+                                  margin: const EdgeInsets.only(bottom: 12),
+                                  elevation: 2,
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                  child: Padding(
+                                    padding: const EdgeInsets.all(16),
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Row(
+                                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                          children: [
+                                            Container(
+                                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                              decoration: BoxDecoration(
+                                                color: primaryColor.withOpacity(0.1),
+                                                borderRadius: BorderRadius.circular(6),
+                                              ),
+                                              child: Text(category, style: const TextStyle(color: primaryColor, fontWeight: FontWeight.bold, fontSize: 12)),
+                                            ),
+                                            IconButton(
+                                              icon: const Icon(Icons.delete_outline, size: 20, color: Colors.red),
+                                              onPressed: () => _confirmDelete(service['id'], category),
+                                            ),
+                                          ],
+                                        ),
+                                        const SizedBox(height: 12),
+                                        Text(title, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                                        const SizedBox(height: 8),
+                                        Text(service['description'], style: const TextStyle(fontSize: 14, color: Colors.black87, height: 1.4)),
+                                        const SizedBox(height: 12),
+                                        if (service['skills'] != null && (service['skills'] as List).isNotEmpty) ...[
+                                          Wrap(
+                                            spacing: 6,
+                                            runSpacing: 6,
+                                            children: (service['skills'] as List).map<Widget>((skill) {
+                                              return Container(
+                                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                                decoration: BoxDecoration(
+                                                  color: Colors.blue.shade50,
+                                                  borderRadius: BorderRadius.circular(4),
+                                                  border: Border.all(color: Colors.blue.shade200),
+                                                ),
+                                                child: Text(skill, style: const TextStyle(fontSize: 11, color: Colors.blue)),
+                                              );
+                                            }).toList(),
+                                          ),
+                                          const SizedBox(height: 12),
+                                        ],
+                                        Row(
+                                          children: [
+                                            const Icon(Icons.attach_money, size: 16, color: Colors.grey),
+                                            const SizedBox(width: 4),
+                                            Text(
+                                              'Rs. $price / $unit',
+                                              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: primaryColor),
+                                            ),
+                                            const SizedBox(width: 12),
+                                            const Icon(Icons.access_time, size: 16, color: Colors.grey),
+                                            const SizedBox(width: 4),
+                                            Text(
+                                              '${service['hours']} hrs',
+                                              style: const TextStyle(fontSize: 14, color: Colors.black87),
+                                            ),
+                                          ],
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                );
+                              },
+                            ),
+                          ),
+          ),
+        ],
       ),
     );
   }

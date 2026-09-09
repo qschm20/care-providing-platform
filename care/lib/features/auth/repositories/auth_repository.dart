@@ -4,10 +4,17 @@ import '../../../core/network/api_client.dart';
 import '../models/auth_result.dart';
 
 class AuthRepository {
-  static const String demoEmail = 'demo@care.app';
+
+  //demoo
+  static const String demoEmail = 'customer@care.app';
   static const String demoPassword = 'demo1234';
+
+  static const String providerDemoEmail = 'provider@care.app';
+  static const String providerDemoPassword = 'demo1234';
+
   static const String demoToken = 'DEMO_TOKEN';
 
+//real
   Future<AuthResult> register({
     required String name,
     required String email,
@@ -38,7 +45,7 @@ class AuthRepository {
       return AuthResult.failure('Could not reach server. Check your connection.');
     }
   }
-
+//demo
   Future<AuthResult> login({
     required String email,
     required String password,
@@ -50,6 +57,13 @@ class AuthRepository {
       );
     }
 
+    if (email == providerDemoEmail && password == providerDemoPassword) {
+      return AuthResult.success(
+        token: demoToken, // Reuses the existing DEMO_TOKEN pattern
+        user: {'name': 'Demo Provider', 'email': providerDemoEmail, 'role': 'provider'},
+      );
+    }
+//real backend
     final url = Uri.parse('${ApiConfig.baseUrl}/auth/login');
     try {
       final response = await http.post(
