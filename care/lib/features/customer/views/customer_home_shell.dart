@@ -9,6 +9,8 @@ import 'child_care_form_screen.dart';
 import 'pet_care_form_screen.dart';
 import 'special_needs_form_screen.dart';
 
+import 'provider_search_screen.dart';
+
 import '../../auth/providers/auth_provider.dart';
 import 'my_care_requests_screen.dart';
 
@@ -24,7 +26,7 @@ class _CustomerHomeShellState extends State<CustomerHomeShell> {
 
   final List<Widget> _pages = const [
     CustomerHomeScreen(),
-    Center(child: Text('Search Screen')),
+    ProviderSearchScreen(),
     MyCareRequestsScreen(),
     Center(child: Text('Settings Screen')),
   ];

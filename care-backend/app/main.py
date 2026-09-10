@@ -7,6 +7,7 @@ from app.models import user  # noqa: F401
 from app.models import care_request  # noqa: F401
 from app.models import provider_profile  # noqa: F401
 from app.models import provider_service  # noqa: F401
+from app.routers import provider_search
 
 from app.routers import auth
 from app.routers import care_requests
@@ -31,6 +32,7 @@ app.include_router(auth.router)
 app.include_router(care_requests.router)
 app.include_router(provider_services.router)
 app.include_router(provider_profiles.router)  
+app.include_router(provider_search.router)
 
 @app.get("/")
 def root():
