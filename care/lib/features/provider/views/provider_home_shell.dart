@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'provider_home_screen.dart';
 import 'provider_profile_screen.dart';
 import 'provider_services_screen.dart';
+import 'provider_requests_screen.dart';
 
 class ProviderHomeShell extends StatefulWidget {
   const ProviderHomeShell({super.key});
@@ -17,7 +18,7 @@ class _ProviderHomeShellState extends State<ProviderHomeShell> {
     ProviderHomeScreen(),
     ProviderServicesScreen(),
     ProviderProfileScreen(),
-    Center(child: Text('Requests (Coming in Increment 6)')),
+    ProviderRequestsScreen(),
   ];
 
   @override

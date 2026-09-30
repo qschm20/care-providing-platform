@@ -1,0 +1,132 @@
+warning: in the working copy of 'care-backend/app/schemas/care_request.py', LF will be replaced by CRLF the next time Git touches it
+[1mdiff --git a/care-backend/app/main.py b/care-backend/app/main.py[m
+[1mindex 731f53e..8be4cd6 100644[m
+[1m--- a/care-backend/app/main.py[m
+[1m+++ b/care-backend/app/main.py[m
+[36m@@ -8,6 +8,7 @@[m [mfrom app.models import care_request  # noqa: F401[m
+ from app.models import provider_profile  # noqa: F401[m
+ from app.models import provider_service  # noqa: F401[m
+ from app.routers import provider_search[m
+[32m+[m[32mfrom app.routers import provider_requests[m
+ [m
+ from app.routers import auth[m
+ from app.routers import care_requests[m
+[36m@@ -33,6 +34,7 @@[m [mapp.include_router(care_requests.router)[m
+ app.include_router(provider_services.router)[m
+ app.include_router(provider_profiles.router)  [m
+ app.include_router(provider_search.router)[m
+[32m+[m[32mapp.include_router(provider_requests.router)[m
+ [m
+ @app.get("/")[m
+ def root():[m
+[1mdiff --git a/care-backend/app/models/care_request.py b/care-backend/app/models/care_request.py[m
+[1mindex f1b78a9..b0f9236 100644[m
+[1m--- a/care-backend/app/models/care_request.py[m
+[1m+++ b/care-backend/app/models/care_request.py[m
+[36m@@ -1,48 +1,50 @@[m
+ import enum[m
+ import uuid[m
+[31m-from datetime import datetime, timezone[m
+[32m+[m[32mfrom datetime import date, datetime, time, timezone[m
+ [m
+[31m-from sqlalchemy import Column, DateTime, Enum, ForeignKey, String, Time, Date[m
+[31m-from sqlalchemy.dialects.postgresql import UUID, JSONB[m
+[32m+[m[32mfrom sqlalchemy import Column, Date, DateTime, ForeignKey, Time, JSON[m
+[32m+[m[32mfrom sqlalchemy import Enum as SqlEnum  # ✅ Aliased to avoid collision with enum.Enum[m
+[32m+[m[32mfrom sqlalchemy.dialects.postgresql import UUID[m
+ from sqlalchemy.orm import relationship[m
+ [m
+ from app.core.database import Base[m
+ [m
+[31m-[m
+ class CareCategoryEnum(str, enum.Enum):[m
+     senior_care = "senior_care"[m
+     child_care = "child_care"[m
+     pet_care = "pet_care"[m
+     special_needs = "special_needs"[m
+ [m
+[31m-[m
+ class RequestStatus(str, enum.Enum):[m
+     pending = "pending"[m
+     active = "active"[m
+     cancelled = "cancelled"[m
+     fulfilled = "fulfilled"[m
+ [m
+[31m-[m
+ class CareRequest(Base):[m
+     __tablename__ = "care_requests"[m
+ [m
+     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)[m
+     customer_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)[m
+[32m+[m[41m    [m
+[32m+[m[32m    #  NEW: Nullable provider_id to track who accepts the request[m
+[32m+[m[32m    provider_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=True)[m
+ [m
+[31m-    category = Column(Enum(CareCategoryEnum), nullable=False)[m
+[31m-    requirements = Column(JSONB, nullable=False)[m
+[32m+[m[32m    category = Column(SqlEnum(CareCategoryEnum), nullable=False)[m
+[32m+[m[32m    requirements = Column(JSON, nullable=False)[m
+ [m
+     service_date = Column(Date, nullable=False)[m
+     start_time = Column(Time, nullable=False)[m
+     end_time = Column(Time, nullable=False)[m
+ [m
+[31m-    status = Column(Enum(RequestStatus), default=RequestStatus.pending, nullable=False)[m
+[32m+[m[32m    status = Column(SqlEnum(RequestStatus), default=RequestStatus.pending, nullable=False)[m
+ [m
+[31m-    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))[m
+[32m+[m[32m    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))[m
+     updated_at = Column([m
+[31m-        DateTime,[m
+[32m+[m[32m        DateTime(timezone=True),[m
+         default=lambda: datetime.now(timezone.utc),[m
+         onupdate=lambda: datetime.now(timezone.utc),[m
+     )[m
+ [m
+[31m-    customer = relationship("User", backref="care_requests")[m
+\ No newline at end of file[m
+[32m+[m[32m    customer = relationship("User", foreign_keys=[customer_id], backref="care_requests")[m
+[32m+[m[32m    provider = relationship("User", foreign_keys=[provider_id])[m
+\ No newline at end of file[m
+[1mdiff --git a/care-backend/app/schemas/care_request.py b/care-backend/app/schemas/care_request.py[m
+[1mindex 0ca5a0c..a7b580f 100644[m
+[1m--- a/care-backend/app/schemas/care_request.py[m
+[1m+++ b/care-backend/app/schemas/care_request.py[m
+[36m@@ -1,7 +1,6 @@[m
+ ﻿import uuid[m
+ from datetime import date, datetime, time[m
+[31m-from typing import Any[m
+[31m-[m
+[32m+[m[32mfrom typing import Any, Optional[m
+ from pydantic import BaseModel, Field[m
+ [m
+ from app.models.care_request import CareCategoryEnum, RequestStatus[m
+[36m@@ -18,6 +17,7 @@[m [mclass CareRequestCreate(BaseModel):[m
+ class CareRequestResponse(BaseModel):[m
+     id: uuid.UUID[m
+     customer_id: uuid.UUID[m
+[32m+[m[32m    provider_id: Optional[uuid.UUID][m
+     category: CareCategoryEnum[m
+     requirements: dict[str, Any][m
+     service_date: date[m
+[1mdiff --git a/care/lib/features/provider/views/provider_home_shell.dart b/care/lib/features/provider/views/provider_home_shell.dart[m
+[1mindex ba84e03..ac63e70 100644[m
+[1m--- a/care/lib/features/provider/views/provider_home_shell.dart[m
+[1m+++ b/care/lib/features/provider/views/provider_home_shell.dart[m
+[36m@@ -2,6 +2,7 @@[m [mimport 'package:flutter/material.dart';[m
+ import 'provider_home_screen.dart';[m
+ import 'provider_profile_screen.dart';[m
+ import 'provider_services_screen.dart';[m
+[32m+[m[32mimport 'provider_requests_screen.dart';[m
+ [m
+ class ProviderHomeShell extends StatefulWidget {[m
+   const ProviderHomeShell({super.key});[m
+[36m@@ -17,7 +18,7 @@[m [mclass _ProviderHomeShellState extends State<ProviderHomeShell> {[m
+     ProviderHomeScreen(),[m
+     ProviderServicesScreen(),[m
+     ProviderProfileScreen(),[m
+[31m-    Center(child: Text('Requests (Coming in Increment 6)')),[m
+[32m+[m[32m    ProviderRequestsScreen(),[m
+   ];[m
+ [m
+   @override[m
