@@ -8,7 +8,7 @@ class ProviderRequestsState {
   final List<ProviderRequestModel> requests;
   final bool isLoading;
   final String? error;
-  final bool isActionLoading; // For loading state during accept/decline
+  final bool isActionLoading;
 
   ProviderRequestsState({
     this.requests = const [],
@@ -67,8 +67,8 @@ class ProviderRequestsNotifier extends StateNotifier<ProviderRequestsState> {
 
     try {
       await _repository.acceptRequest(token: token, requestId: requestId);
-      // Refresh the list after successful acceptance
       await fetchRequests(); 
+      state = state.copyWith(isActionLoading: false); // ✅ FIX: Reset loading state
     } catch (e) {
       state = state.copyWith(error: e.toString(), isActionLoading: false);
     }
@@ -85,8 +85,44 @@ class ProviderRequestsNotifier extends StateNotifier<ProviderRequestsState> {
 
     try {
       await _repository.declineRequest(token: token, requestId: requestId);
-      // Refresh the list after declining (removes it from their view)
       await fetchRequests();
+      state = state.copyWith(isActionLoading: false); // ✅ FIX: Reset loading state
+    } catch (e) {
+      state = state.copyWith(error: e.toString(), isActionLoading: false);
+    }
+  }
+
+  Future<void> startRequest(String requestId) async {
+    state = state.copyWith(isActionLoading: true, error: null);
+    final token = _ref.read(authProvider).token;
+
+    if (token == null) {
+      state = state.copyWith(isActionLoading: false, error: 'Not authenticated');
+      return;
+    }
+
+    try {
+      await _repository.startRequest(token: token, requestId: requestId);
+      await fetchRequests();
+      state = state.copyWith(isActionLoading: false); // ✅ FIX: Reset loading state
+    } catch (e) {
+      state = state.copyWith(error: e.toString(), isActionLoading: false);
+    }
+  }
+
+  Future<void> completeRequest(String requestId) async {
+    state = state.copyWith(isActionLoading: true, error: null);
+    final token = _ref.read(authProvider).token;
+
+    if (token == null) {
+      state = state.copyWith(isActionLoading: false, error: 'Not authenticated');
+      return;
+    }
+
+    try {
+      await _repository.completeRequest(token: token, requestId: requestId);
+      await fetchRequests();
+      state = state.copyWith(isActionLoading: false); // ✅ FIX: Reset loading state
     } catch (e) {
       state = state.copyWith(error: e.toString(), isActionLoading: false);
     }

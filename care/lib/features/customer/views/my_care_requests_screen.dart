@@ -29,6 +29,7 @@ class _MyCareRequestsScreenState extends ConsumerState<MyCareRequestsScreen> {
 
     final token = ref.read(authProvider).token;
     if (token == null) {
+      if (!mounted) return;
       setState(() {
         _errorMessage = 'You must be logged in';
         _isLoading = false;
@@ -65,15 +66,59 @@ class _MyCareRequestsScreenState extends ConsumerState<MyCareRequestsScreen> {
     switch (status) {
       case 'pending':
         return Colors.orange;
-      case 'active':
+      case 'confirmed':
         return Colors.blue;
+      case 'in_progress':
+        return Colors.purple;
+      case 'completed':
+        return Colors.green;
       case 'cancelled':
         return Colors.red;
-      case 'fulfilled':
-        return Colors.green;
       default:
         return Colors.grey;
     }
+  }
+
+  void _showCancelDialog(BuildContext context, String requestId) {
+    final token = ref.read(authProvider).token;
+    if (token == null) return;
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Cancel Request?'),
+        content: const Text('Are you sure you want to cancel this care request? This action cannot be undone.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('No, Keep It'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              Navigator.pop(ctx); 
+              
+              final success = await ref.read(careRequestNotifierProvider.notifier).cancelRequest(requestId, token);
+              
+              if (!mounted) return;
+              
+              if (success) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Request cancelled successfully.'), backgroundColor: Colors.green),
+                );
+                _loadRequests(); 
+              } else {
+                final errorMsg = ref.read(careRequestNotifierProvider).errorMessage ?? 'Failed to cancel request';
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text(errorMsg), backgroundColor: Colors.red),
+                );
+              }
+            },
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            child: const Text('Yes, Cancel'),
+          ),
+        ],
+      ),
+    );
   }
 
   @override
@@ -86,21 +131,28 @@ class _MyCareRequestsScreenState extends ConsumerState<MyCareRequestsScreen> {
         title: const Text('My Care Requests'),
         backgroundColor: Colors.transparent,
         elevation: 0,
+        foregroundColor: primaryColor,
       ),
       body: RefreshIndicator(
         onRefresh: _loadRequests,
         child: _isLoading
-            ? const Center(child: CircularProgressIndicator())
+            ? const Center(child: CircularProgressIndicator(color: primaryColor))
             : _errorMessage != null
-                ? Center(child: Text(_errorMessage!))
+                ? Center(
+                    child: Padding(
+                      padding: const EdgeInsets.all(20.0),
+                      child: Text(_errorMessage!, textAlign: TextAlign.center, style: const TextStyle(color: Colors.red)),
+                    ),
+                  )
                 : _requests.isEmpty
+                    // ✅ FIX: Removed 'const' before ListView
                     ? ListView(
                         children: const [
                           SizedBox(height: 100),
                           Center(
                             child: Text(
                               'No care requests yet',
-                              style: TextStyle(color: Colors.grey),
+                              style: TextStyle(color: Colors.grey, fontSize: 16),
                             ),
                           ),
                         ],
@@ -110,6 +162,8 @@ class _MyCareRequestsScreenState extends ConsumerState<MyCareRequestsScreen> {
                         itemCount: _requests.length,
                         itemBuilder: (context, index) {
                           final request = _requests[index];
+                          final status = request['status'] ?? 'pending';
+
                           return Container(
                             margin: const EdgeInsets.only(bottom: 12),
                             padding: const EdgeInsets.all(16),
@@ -138,17 +192,15 @@ class _MyCareRequestsScreenState extends ConsumerState<MyCareRequestsScreen> {
                                       ),
                                     ),
                                     Container(
-                                      padding: const EdgeInsets.symmetric(
-                                          horizontal: 10, vertical: 4),
+                                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                                       decoration: BoxDecoration(
-                                        color: _statusColor(request['status'])
-                                            .withOpacity(0.15),
+                                        color: _statusColor(status).withOpacity(0.15),
                                         borderRadius: BorderRadius.circular(20),
                                       ),
                                       child: Text(
-                                        request['status'].toString().toUpperCase(),
+                                        status.toUpperCase(),
                                         style: TextStyle(
-                                          color: _statusColor(request['status']),
+                                          color: _statusColor(status),
                                           fontWeight: FontWeight.bold,
                                           fontSize: 11,
                                         ),
@@ -165,6 +217,24 @@ class _MyCareRequestsScreenState extends ConsumerState<MyCareRequestsScreen> {
                                   'Time: ${request['start_time']} - ${request['end_time']}',
                                   style: const TextStyle(fontSize: 13, color: Colors.grey),
                                 ),
+                                
+                                if (status == 'pending' || status == 'confirmed') ...[
+                                  const SizedBox(height: 16),
+                                  SizedBox(
+                                    width: double.infinity,
+                                    child: OutlinedButton.icon(
+                                      onPressed: () => _showCancelDialog(context, request['id']),
+                                      icon: const Icon(Icons.cancel, size: 18),
+                                      label: const Text('Cancel Request'),
+                                      style: OutlinedButton.styleFrom(
+                                        foregroundColor: Colors.red,
+                                        side: const BorderSide(color: Colors.red),
+                                        padding: const EdgeInsets.symmetric(vertical: 12),
+                                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                                      ),
+                                    ),
+                                  ),
+                                ],
                               ],
                             ),
                           );

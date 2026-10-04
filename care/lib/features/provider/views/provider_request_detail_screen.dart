@@ -8,10 +8,28 @@ class ProviderRequestDetailScreen extends ConsumerWidget {
 
   const ProviderRequestDetailScreen({super.key, required this.request});
 
+  Color _getStatusColor(String status) {
+    switch (status) {
+      case 'pending':
+        return Colors.orange;
+      case 'confirmed':
+        return Colors.blue;
+      case 'in_progress':
+        return Colors.purple;
+      case 'completed':
+        return Colors.green;
+      case 'cancelled':
+        return Colors.red;
+      default:
+        return Colors.grey;
+    }
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     const primaryColor = Color(0xFF006859);
     final state = ref.watch(providerRequestsProvider);
+    final statusColor = _getStatusColor(request.status);
 
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFC),
@@ -26,7 +44,6 @@ class ProviderRequestDetailScreen extends ConsumerWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Header Card
             Card(
               elevation: 2,
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -45,12 +62,12 @@ class ProviderRequestDetailScreen extends ConsumerWidget {
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                           decoration: BoxDecoration(
-                            color: Colors.orange.shade100,
+                            color: statusColor.withOpacity(0.15),
                             borderRadius: BorderRadius.circular(6),
                           ),
                           child: Text(
                             request.status.toUpperCase(),
-                            style: TextStyle(fontSize: 12, color: Colors.orange.shade800, fontWeight: FontWeight.bold),
+                            style: TextStyle(fontSize: 12, color: statusColor, fontWeight: FontWeight.bold),
                           ),
                         ),
                       ],
@@ -65,7 +82,6 @@ class ProviderRequestDetailScreen extends ConsumerWidget {
             ),
             const SizedBox(height: 20),
 
-            // Requirements Section
             const Text('Customer Requirements', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.black87)),
             const SizedBox(height: 12),
             Card(
@@ -99,10 +115,9 @@ class ProviderRequestDetailScreen extends ConsumerWidget {
             ),
             const SizedBox(height: 30),
 
-            // Action Buttons
             if (state.isActionLoading)
               const Center(child: CircularProgressIndicator(color: primaryColor))
-            else
+            else if (request.status == 'pending')
               Row(
                 children: [
                   Expanded(
@@ -129,6 +144,52 @@ class ProviderRequestDetailScreen extends ConsumerWidget {
                     ),
                   ),
                 ],
+              )
+            else if (request.status == 'confirmed')
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  onPressed: () => _showStartDialog(context, ref),
+                  icon: const Icon(Icons.play_arrow),
+                  label: const Text('Start Service', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: primaryColor,
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                ),
+              )
+            else if (request.status == 'in_progress')
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  onPressed: () => _showCompleteDialog(context, ref),
+                  icon: const Icon(Icons.check_circle),
+                  label: const Text('Mark as Completed', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.blue,
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                ),
+              )
+            else
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                decoration: BoxDecoration(
+                  color: request.status == 'completed' ? Colors.green.shade100 : Colors.grey.shade200,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Text(
+                  'Request ${request.status.toUpperCase()}',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: request.status == 'completed' ? Colors.green.shade800 : Colors.grey.shade800,
+                  ),
+                ),
               ),
           ],
         ),
@@ -163,7 +224,7 @@ class ProviderRequestDetailScreen extends ConsumerWidget {
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(content: Text('Request accepted successfully!'), backgroundColor: Color(0xFF006859)),
                   );
-                  Navigator.pop(context); // Go back to list
+                  Navigator.pop(context); 
                 }
               });
             },
@@ -191,12 +252,66 @@ class ProviderRequestDetailScreen extends ConsumerWidget {
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(content: Text('Request declined.'), backgroundColor: Colors.red),
                   );
-                  Navigator.pop(context); // Go back to list
+                  Navigator.pop(context); 
                 }
               });
             },
             style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
             child: const Text('Confirm Decline'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ✅ FIX: Removed 'final success =' since startRequest returns void
+  void _showStartDialog(BuildContext context, WidgetRef ref) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Start Service?'),
+        content: const Text('This will notify the customer that you have arrived and begun the care service.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+          ElevatedButton(
+            onPressed: () async {
+              Navigator.pop(ctx);
+              await ref.read(providerRequestsProvider.notifier).startRequest(request.id);
+              if (context.mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Service started!'), backgroundColor: Color(0xFF006859)),
+                );
+              }
+            },
+            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF006859)),
+            child: const Text('Confirm Start'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ✅ FIX: Removed 'final success =' since completeRequest returns void
+  void _showCompleteDialog(BuildContext context, WidgetRef ref) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Complete Service?'),
+        content: const Text('Mark this care request as fully completed?'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+          ElevatedButton(
+            onPressed: () async {
+              Navigator.pop(ctx);
+              await ref.read(providerRequestsProvider.notifier).completeRequest(request.id);
+              if (context.mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Service completed successfully!'), backgroundColor: Colors.blue),
+                );
+              }
+            },
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.blue),
+            child: const Text('Confirm Complete'),
           ),
         ],
       ),

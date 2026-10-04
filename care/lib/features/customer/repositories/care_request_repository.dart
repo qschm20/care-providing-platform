@@ -19,7 +19,6 @@ class CareRequestResult {
 }
 
 class CareRequestRepository {
-  // In-memory storage for demo mode only — resets when app restarts
   static final List<Map<String, dynamic>> _demoRequests = [];
 
   Future<CareRequestResult> createRequest(
@@ -78,6 +77,38 @@ class CareRequestRepository {
         return CareRequestResult.success({'requests': jsonDecode(response.body)});
       } else {
         return CareRequestResult.failure('Failed to load requests');
+      }
+    } catch (e) {
+      return CareRequestResult.failure('Could not reach server. Check your connection.');
+    }
+  }
+
+  Future<CareRequestResult> cancelRequest(String requestId, String token) async {
+    if (token == AuthRepository.demoToken) {
+      final requestIndex = _demoRequests.indexWhere((r) => r['id'] == requestId);
+      if (requestIndex != -1) {
+        _demoRequests[requestIndex]['status'] = 'cancelled';
+        return CareRequestResult.success({'message': 'Request cancelled successfully.'});
+      } else {
+        return CareRequestResult.failure('Request not found');
+      }
+    }
+
+    final url = Uri.parse('${ApiConfig.baseUrl}/care-requests/$requestId/cancel');
+    try {
+      final response = await http.post(
+        url,
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+      );
+
+      if (response.statusCode == 200) {
+        return CareRequestResult.success(jsonDecode(response.body));
+      } else {
+        final body = jsonDecode(response.body);
+        return CareRequestResult.failure(body['detail'] ?? 'Failed to cancel request');
       }
     } catch (e) {
       return CareRequestResult.failure('Could not reach server. Check your connection.');

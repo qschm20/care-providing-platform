@@ -44,7 +44,8 @@ class ProviderRequestsRepository {
     } else if (response.statusCode == 409) {
       throw Exception('Request already accepted by another provider');
     } else {
-      throw Exception('Failed to accept request: ${response.statusCode}');
+      final body = jsonDecode(response.body);
+      throw Exception(body['detail'] ?? 'Failed to accept request: ${response.statusCode}');
     }
   }
 
@@ -64,7 +65,50 @@ class ProviderRequestsRepository {
     if (response.statusCode == 200) {
       return jsonDecode(response.body);
     } else {
-      throw Exception('Failed to decline request: ${response.statusCode}');
+      final body = jsonDecode(response.body);
+      throw Exception(body['detail'] ?? 'Failed to decline request: ${response.statusCode}');
+    }
+  }
+
+  // ✅ NEW: Start Service (Increment 7)
+  Future<Map<String, dynamic>> startRequest({
+    required String token,
+    required String requestId,
+  }) async {
+    final response = await http.post(
+      Uri.parse('$baseUrl/provider/requests/$requestId/start'),
+      headers: {
+        'Authorization': 'Bearer $token',
+        'Content-Type': 'application/json',
+      },
+    );
+
+    if (response.statusCode == 200) {
+      return jsonDecode(response.body);
+    } else {
+      final body = jsonDecode(response.body);
+      throw Exception(body['detail'] ?? 'Failed to start request: ${response.statusCode}');
+    }
+  }
+
+  // ✅ NEW: Complete Service (Increment 7)
+  Future<Map<String, dynamic>> completeRequest({
+    required String token,
+    required String requestId,
+  }) async {
+    final response = await http.post(
+      Uri.parse('$baseUrl/provider/requests/$requestId/complete'),
+      headers: {
+        'Authorization': 'Bearer $token',
+        'Content-Type': 'application/json',
+      },
+    );
+
+    if (response.statusCode == 200) {
+      return jsonDecode(response.body);
+    } else {
+      final body = jsonDecode(response.body);
+      throw Exception(body['detail'] ?? 'Failed to complete request: ${response.statusCode}');
     }
   }
 }

@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
-from sqlalchemy import and_
+from sqlalchemy import and_, or_ # ✅ Added or_
 
 from app.core.database import get_db
 from app.core.security import get_current_user
@@ -37,6 +37,7 @@ def check_eligibility(profile: ProviderProfile, category: str, db: Session):
             detail=f"Provider is not eligible for {category} requests."
         )
 
+# ✅ UPDATED: Fetches both pending matching requests AND requests assigned to this provider
 @router.get("/")
 def get_matching_requests(
     current_user: User = Depends(get_current_user),
@@ -50,15 +51,22 @@ def get_matching_requests(
     ).all()
     eligible_categories = [s.category for s in provider_services]
     
-    if not eligible_categories:
-        return []
-
-    # Find pending requests matching those categories
-    requests = db.query(CareRequest).filter(
-        and_(
-            CareRequest.status == RequestStatus.pending,
-            CareRequest.category.in_(eligible_categories)
+    # Build conditions:
+    # 1. ANY request already assigned to this provider (so they can manage accepted jobs)
+    conditions = [CareRequest.provider_id == current_user.id]
+    
+    # 2. Pending requests in eligible categories (for new matching)
+    if eligible_categories:
+        conditions.append(
+            and_(
+                CareRequest.status == RequestStatus.pending,
+                CareRequest.category.in_(eligible_categories)
+            )
         )
+        
+    # Query using OR logic
+    requests = db.query(CareRequest).filter(
+        or_(*conditions)
     ).order_by(CareRequest.created_at.desc()).all()
     
     return requests
@@ -84,11 +92,11 @@ def accept_request(
     if request.status != RequestStatus.pending:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT, 
-            detail=f"Request is no longer pending (current status: {request.status})."
+            detail=f"Request is no longer pending (current status: {request.status.value})."
         )
         
-    # 4. Assign and update
-    request.status = RequestStatus.active
+    # 4. Assign and update to CONFIRMED (Increment 7 update)
+    request.status = RequestStatus.confirmed
     request.provider_id = current_user.id
     
     db.commit()
@@ -109,7 +117,62 @@ def decline_request(
         
     check_eligibility(profile, request.category, db)
     
-    # Declining doesn't change the request status; it just removes it from this provider's view
-    # (or we could log a "declined_by" relationship, but keeping it simple for Increment 6)
-    
     return {"message": "Request declined."}
+
+# ✅ Start Service Endpoint (Increment 7)
+@router.post("/{request_id}/start")
+def start_request(
+    request_id: str,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    if current_user.role != UserRole.provider:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Only providers can start a service.")
+    
+    request = db.query(CareRequest).filter(CareRequest.id == request_id).with_for_update().first()
+    
+    if not request:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Request not found.")
+        
+    # Security: Only the assigned provider can start it
+    if request.provider_id != current_user.id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="You are not assigned to this request.")
+        
+    # State Machine Validation
+    if request.status != RequestStatus.confirmed:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, 
+            detail=f"Cannot start request. Current status is {request.status.value}, expected 'confirmed'."
+        )
+        
+    request.status = RequestStatus.in_progress
+    db.commit()
+    return {"message": "Service started successfully.", "request_id": request.id}
+
+# ✅ Complete Service Endpoint (Increment 7)
+@router.post("/{request_id}/complete")
+def complete_request(
+    request_id: str,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    if current_user.role != UserRole.provider:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Only providers can complete a service.")
+    
+    request = db.query(CareRequest).filter(CareRequest.id == request_id).with_for_update().first()
+    
+    if not request:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Request not found.")
+        
+    if request.provider_id != current_user.id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="You are not assigned to this request.")
+        
+    if request.status != RequestStatus.in_progress:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, 
+            detail=f"Cannot complete request. Current status is {request.status.value}, expected 'in_progress'."
+        )
+        
+    request.status = RequestStatus.completed
+    db.commit()
+    return {"message": "Service completed successfully.", "request_id": request.id}

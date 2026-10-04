@@ -17,9 +17,10 @@ class CareCategoryEnum(str, enum.Enum):
 
 class RequestStatus(str, enum.Enum):
     pending = "pending"
-    active = "active"
+    confirmed = "confirmed"      # Renamed from 'active'
+    in_progress = "in_progress"  # New status
+    completed = "completed"      # Renamed from 'fulfilled'
     cancelled = "cancelled"
-    fulfilled = "fulfilled"
 
 class CareRequest(Base):
     __tablename__ = "care_requests"

@@ -40,6 +40,28 @@ class CareRequestNotifier extends StateNotifier<CareRequestState> {
     }
   }
 
+  // ✅ NEW: Cancel Request (Increment 7)
+  Future<bool> cancelRequest(String requestId, String token) async {
+    if (state.status == SubmissionStatus.loading) {
+      return false; // block duplicate submissions
+    }
+
+    state = const CareRequestState(status: SubmissionStatus.loading);
+
+    final result = await _repository.cancelRequest(requestId, token);
+
+    if (result.success) {
+      state = const CareRequestState(status: SubmissionStatus.success);
+      return true;
+    } else {
+      state = CareRequestState(
+        status: SubmissionStatus.error,
+        errorMessage: result.errorMessage,
+      );
+      return false;
+    }
+  }
+
   void reset() {
     state = const CareRequestState();
   }
