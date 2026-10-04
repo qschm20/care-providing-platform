@@ -1,5 +1,5 @@
 from fastapi import FastAPI
-
+from app.routers import reviews
 from fastapi.middleware.cors import CORSMiddleware #for crome
 
 from app.core.database import Base, engine
@@ -35,6 +35,7 @@ app.include_router(provider_services.router)
 app.include_router(provider_profiles.router)  
 app.include_router(provider_search.router)
 app.include_router(provider_requests.router)
+app.include_router(reviews.router) 
 
 @app.get("/")
 def root():
