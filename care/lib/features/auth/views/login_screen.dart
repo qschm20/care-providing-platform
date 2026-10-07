@@ -2,9 +2,10 @@ import 'register_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../customer/views/customer_home_shell.dart';
+import '../../provider/views/provider_home_shell.dart';
+import '../../admin/views/admin_home_shell.dart'; // ✅ Added Admin import
 import '../repositories/auth_repository.dart';
 import '../providers/auth_provider.dart';
-import '../../provider/views/provider_home_shell.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
@@ -48,16 +49,24 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             user: result.user!,
           );
 
-      // --- NEW ROUTING LOGIC BASED ON ROLE ---
+      // --- UPDATED ROUTING LOGIC BASED ON ROLE ---
       final userRole = result.user!['role'];
 
-         if (userRole == 'provider') {
-     Navigator.pushAndRemoveUntil(
-       context,
-       MaterialPageRoute(builder: (context) => const ProviderHomeShell()),
-       (route) => false,
-     );
-   } else {
+      if (userRole == 'admin') {
+        // ✅ Admin goes to the admin dashboard
+        Navigator.pushAndRemoveUntil(
+          context,
+          MaterialPageRoute(builder: (context) => const AdminHomeShell()),
+          (route) => false,
+        );
+      } else if (userRole == 'provider') {
+        // Provider goes to the provider home
+        Navigator.pushAndRemoveUntil(
+          context,
+          MaterialPageRoute(builder: (context) => const ProviderHomeShell()),
+          (route) => false,
+        );
+      } else {
         // Customer goes to the customer home
         Navigator.pushAndRemoveUntil(
           context,
